@@ -328,7 +328,7 @@
         return;
     }
 
-    const originalCodes = rawInput.split(/\n/).map(c => c.trim()).filter(Boolean);
+    const originalCodes = rawInput.split(/\s+/).map(c => c.trim()).filter(Boolean);
     const uniqueCodesSet = new Set(originalCodes);
     const uniqueCodes = [...uniqueCodesSet];
     const duplicatesRemoved = originalCodes.length - uniqueCodes.length;
