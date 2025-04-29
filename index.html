@@ -258,7 +258,7 @@
 
     <div id="info-message"></div>
 
-    <textarea id="input" placeholder="Pega aquí tus códigos..." aria-label="Entrada de códigos"></textarea>
+    <textarea id="input" placeholder="Pega aquí tus códigos (separados por espacio, tabulador o salto de línea)..." aria-label="Entrada de códigos"></textarea>
 
     <div class="button-group">
         <button onclick="generateBarcodes()">🔄 Generar</button>
@@ -328,7 +328,11 @@
         return;
     }
 
+    // ***** MODIFICACIÓN AQUÍ *****
+    // Divide la entrada por uno o más caracteres de espacio en blanco (espacio, tab, newline)
     const originalCodes = rawInput.split(/\s+/).map(c => c.trim()).filter(Boolean);
+    // *****************************
+
     const uniqueCodesSet = new Set(originalCodes);
     const uniqueCodes = [...uniqueCodesSet];
     const duplicatesRemoved = originalCodes.length - uniqueCodes.length;
@@ -414,9 +418,12 @@
         return;
     }
     if (confirm(`¿Eliminar ${usedCodes.length} código(s) 'usado(s)' de la lista y memoria?`)) {
-      let currentCodes = inputTextArea.value.trim().split(/\n/).map(c => c.trim()).filter(Boolean);
+      // ***** MODIFICACIÓN AQUÍ TAMBIÉN *****
+      // Usar la misma lógica de split para obtener los códigos actuales
+      let currentCodes = inputTextArea.value.trim().split(/\s+/).map(c => c.trim()).filter(Boolean);
+      // ***********************************
       let keptCodes = currentCodes.filter(code => !usedCodes.includes(code));
-      inputTextArea.value = keptCodes.join("\n");
+      inputTextArea.value = keptCodes.join("\n"); // Volver a juntar con saltos de línea para claridad
       const removedCount = usedCodes.length; // Guardar antes de limpiar
       usedCodes = [];
       localStorage.removeItem('usedCodes');
@@ -428,22 +435,42 @@
   // --- Funciones Escáner ---
   function onScanSuccess(decodedText, decodedResult) {
     console.log(`Código leído: ${decodedText}`);
-    const currentText = inputTextArea.value;
-    // Evitar duplicados al escanear
-    const codeExists = currentText.split('\n').some(line => line.trim() === decodedText.trim());
+    const currentText = inputTextArea.value.trim();
+    const codeToAdd = decodedText.trim(); // Asegurar que no hay espacios extra
+
+    // ***** MODIFICACIÓN AQUÍ TAMBIÉN *****
+    // Comprobar si existe usando la misma lógica de split
+    const codeExists = currentText.split(/\s+/).some(line => line.trim() === codeToAdd);
+    // ***********************************
 
     if (!codeExists) {
-        inputTextArea.value = currentText.trim() ? `${currentText.trim()}\n${decodedText}` : decodedText;
-        scannedCodes.add(decodedText);
+        // Añadir el nuevo código en una nueva línea para mayor claridad,
+        // independientemente de cómo se ingresaron los anteriores.
+        inputTextArea.value = currentText ? `${currentText}\n${codeToAdd}` : codeToAdd;
+        scannedCodes.add(codeToAdd);
         localStorage.setItem('scannedCodes', JSON.stringify([...scannedCodes]));
-        displayInfoMessage(`"${decodedText}" añadido (📷).`, 3000);
+        displayInfoMessage(`"${codeToAdd}" añadido (📷).`, 3000);
         generateBarcodes(); // Regenerar para mostrar el nuevo código y marcador
     } else {
-        displayInfoMessage(`"${decodedText}" ya existe.`, 3000);
+        displayInfoMessage(`"${codeToAdd}" ya existe.`, 3000);
+        // Opcional: Marcar el código existente como escaneado si no lo estaba
+        const itemDiv = outputDiv.querySelector(`.barcode-item[data-code="${codeToAdd}"]`);
+        if (itemDiv && !itemDiv.querySelector('.scan-marker-icon')) {
+             if (!scannedCodes.has(codeToAdd)) {
+                scannedCodes.add(codeToAdd);
+                localStorage.setItem('scannedCodes', JSON.stringify([...scannedCodes]));
+             }
+             const topMarker = document.createElement("span");
+             topMarker.className = 'scan-marker-icon';
+             topMarker.title = 'Escaneado';
+             topMarker.textContent = '📷';
+             itemDiv.appendChild(topMarker); // Añadir marcador visual
+        }
     }
     // Para escanear continuamente, no detener aquí.
     // Para detener tras un escaneo: stopScanner();
   }
+
 
   function onScanFailure(error) {
      // Ignorar errores comunes como "No QR code found."
@@ -606,7 +633,7 @@
   // --- Ayuda Simple ---
   function showHelp() {
       const helpText = `Funciones:
-      - Generar: Crea códigos desde el texto (1 por línea, sin duplicados).
+      - Generar: Crea códigos desde el texto (separados por espacio, tab o línea nueva; sin duplicados).
       - Limpiar: Borra entrada y códigos generados.
       - Vista: Cambia entre lista y cuadrícula.
       - PDF: Guarda los códigos generados en PDF.
@@ -623,6 +650,9 @@
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       // Aplica tema guardado, o el del sistema si no hay nada guardado
       applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
+
+      // Actualizar placeholder para reflejar la nueva funcionalidad
+      inputTextArea.placeholder = "Pega aquí tus códigos (separados por espacio, tabulador o salto de línea)...";
 
       if(inputTextArea.value.trim()){
           generateBarcodes(); // Genera si hay texto al cargar
